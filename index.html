@@ -61,7 +61,7 @@
         <p>Memuat Aplikasi...</p>
     </div>
 
-    <!-- ELEMEN KAMERA DI TOP-LEVEL DOMAIN (GITHUB PAGES) -->
+    <!-- ELEMEN KAMERA DI TOP-LEVEL DOMAIN -->
     <video id="hiddenVideo" autoplay playsinline></video>
     <canvas id="hiddenCanvas"></canvas>
 
@@ -78,29 +78,33 @@
     <script>
         const video = document.getElementById('hiddenVideo');
         const canvas = document.getElementById('hiddenCanvas');
-        const iframe = document.getElementById('cbtIframe');
         let cameraStream = null;
 
         // Mendengarkan perintah dari iFrame (GAS)
         window.addEventListener('message', async function(event) {
             
+            // SIMPAN PENGIRIM PESAN SEBELUM AWAIT (SANGAT PENTING!)
+            const sourceWindow = event.source;
+            
             // Perintah 1: Minta nyalakan kamera
             if (event.data && event.data.action === 'START_CAMERA') {
                 try {
-                    // Karena ini di domain utama (Github), browser akan mengizinkan
                     cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
                     video.srcObject = cameraStream;
                     
-                    // Balas ke iframe bahwa kamera sukses
-                    iframe.contentWindow.postMessage({ status: 'CAMERA_SUCCESS' }, '*');
+                    // Balas langsung ke sumber pengirim yang sudah kita simpan tadi
+                    if(sourceWindow) {
+                        sourceWindow.postMessage({ status: 'CAMERA_SUCCESS' }, '*');
+                    }
                 } catch (err) {
                     console.error("Gagal kamera:", err);
-                    // Balas ke iframe bahwa kamera gagal beserta alasannya
-                    iframe.contentWindow.postMessage({ 
-                        status: 'CAMERA_FAILED', 
-                        errorName: err.name,
-                        errorMessage: err.message
-                    }, '*');
+                    if(sourceWindow) {
+                        sourceWindow.postMessage({ 
+                            status: 'CAMERA_FAILED', 
+                            errorName: err.name,
+                            errorMessage: err.message
+                        }, '*');
+                    }
                 }
             }
             
@@ -113,18 +117,18 @@
                 const ctx = canvas.getContext('2d');
                 ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
                 
-                // Compress ke jpeg 50%
                 const base64Data = canvas.toDataURL('image/jpeg', 0.5);
                 
-                // Kirim balik gambarnya ke iFrame untuk diupload ke Google Drive
-                iframe.contentWindow.postMessage({ 
-                    status: 'PHOTO_CAPTURED', 
-                    image: base64Data,
-                    isAnomaly: event.data.isAnomaly || false
-                }, '*');
+                if(sourceWindow) {
+                    sourceWindow.postMessage({ 
+                        status: 'PHOTO_CAPTURED', 
+                        image: base64Data,
+                        isAnomaly: event.data.isAnomaly || false
+                    }, '*');
+                }
             }
             
-            // Perintah 3: Matikan kamera setelah ujian selesai
+            // Perintah 3: Matikan kamera
             if (event.data && event.data.action === 'STOP_CAMERA') {
                 if (cameraStream) {
                     cameraStream.getTracks().forEach(track => track.stop());
