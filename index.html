@@ -11,8 +11,8 @@
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden; /* Mencegah munculnya scrollbar ganda */
-            background-color: #f5f7fa; /* Warna latar belakang selaras dengan aplikasi CBT */
+            overflow: hidden; 
+            background-color: #f5f7fa; 
         }
         
         .loader-container {
@@ -23,7 +23,7 @@
             font-family: sans-serif;
             color: #555;
             text-align: center;
-            z-index: 1; /* Di bawah iframe */
+            z-index: 1; 
         }
 
         .spinner {
@@ -46,8 +46,12 @@
             border: none;
             display: block;
             position: relative;
-            z-index: 2; /* Menutupi loader saat sudah selesai dimuat */
+            z-index: 2; 
         }
+
+        /* Video dan Canvas disembunyikan karena hanya untuk background capture */
+        #hiddenVideo { display: none; }
+        #hiddenCanvas { display: none; }
     </style>
 </head>
 <body>
@@ -57,14 +61,78 @@
         <p>Memuat Aplikasi...</p>
     </div>
 
-    <!-- PERHATIKAN atribut 'allow', ini sangat penting untuk akses kamera -->
+    <!-- ELEMEN KAMERA DI TOP-LEVEL DOMAIN (GITHUB PAGES) -->
+    <video id="hiddenVideo" autoplay playsinline></video>
+    <canvas id="hiddenCanvas"></canvas>
+
+    <!-- IFRAME CBT -->
     <iframe 
+        id="cbtIframe"
         src="https://script.google.com/macros/s/AKfycbyM8fzIY08AKIl3yozkFMGXGSTR8udQKxBoBXUyKKyMgpeGRKkn3RQaFlxGyanmxBEe_g/exec" 
-        allow="camera; microphone; display-capture; fullscreen; autoplay; clipboard-read; clipboard-write"
+        allow="camera *; microphone *; display-capture *; fullscreen *; autoplay *; clipboard-read *; clipboard-write *"
         allowfullscreen="true"
         webkitallowfullscreen="true"
         mozallowfullscreen="true">
     </iframe>
 
+    <script>
+        const video = document.getElementById('hiddenVideo');
+        const canvas = document.getElementById('hiddenCanvas');
+        const iframe = document.getElementById('cbtIframe');
+        let cameraStream = null;
+
+        // Mendengarkan perintah dari iFrame (GAS)
+        window.addEventListener('message', async function(event) {
+            
+            // Perintah 1: Minta nyalakan kamera
+            if (event.data && event.data.action === 'START_CAMERA') {
+                try {
+                    // Karena ini di domain utama (Github), browser akan mengizinkan
+                    cameraStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" }, audio: false });
+                    video.srcObject = cameraStream;
+                    
+                    // Balas ke iframe bahwa kamera sukses
+                    iframe.contentWindow.postMessage({ status: 'CAMERA_SUCCESS' }, '*');
+                } catch (err) {
+                    console.error("Gagal kamera:", err);
+                    // Balas ke iframe bahwa kamera gagal beserta alasannya
+                    iframe.contentWindow.postMessage({ 
+                        status: 'CAMERA_FAILED', 
+                        errorName: err.name,
+                        errorMessage: err.message
+                    }, '*');
+                }
+            }
+            
+            // Perintah 2: Jepret foto
+            if (event.data && event.data.action === 'TAKE_PHOTO') {
+                if (!cameraStream || !video.videoWidth) return;
+
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                
+                // Compress ke jpeg 50%
+                const base64Data = canvas.toDataURL('image/jpeg', 0.5);
+                
+                // Kirim balik gambarnya ke iFrame untuk diupload ke Google Drive
+                iframe.contentWindow.postMessage({ 
+                    status: 'PHOTO_CAPTURED', 
+                    image: base64Data,
+                    isAnomaly: event.data.isAnomaly || false
+                }, '*');
+            }
+            
+            // Perintah 3: Matikan kamera setelah ujian selesai
+            if (event.data && event.data.action === 'STOP_CAMERA') {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                    video.srcObject = null;
+                    cameraStream = null;
+                }
+            }
+        });
+    </script>
 </body>
 </html>
