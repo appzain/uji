@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CBT Professional App</title>
+    
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden; /* Mencegah munculnya scrollbar ganda */
+            background-color: #f5f7fa; /* Warna latar belakang selaras dengan aplikasi CBT */
+        }
+        
+        .loader-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: sans-serif;
+            color: #555;
+            text-align: center;
+            z-index: 1; /* Di bawah iframe */
+        }
+
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0,0,0,0.1);
+            border-left-color: #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px auto;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        iframe {
+            width: 100%;
+            height: 100%;
+            border: none;
+            display: block;
+            position: relative;
+            z-index: 2; /* Menutupi loader saat sudah selesai dimuat */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="loader-container">
+        <div class="spinner"></div>
+        <p>Memuat Aplikasi...</p>
+    </div>
+
+    <!-- PERHATIKAN atribut 'allow', ini sangat penting untuk akses kamera -->
+    <iframe 
+        src="https://script.google.com/macros/s/AKfycbyM8fzIY08AKIl3yozkFMGXGSTR8udQKxBoBXUyKKyMgpeGRKkn3RQaFlxGyanmxBEe_g/exec" 
+        allow="camera; microphone; display-capture; fullscreen; autoplay; clipboard-read; clipboard-write"
+        allowfullscreen="true"
+        webkitallowfullscreen="true"
+        mozallowfullscreen="true">
+    </iframe>
+
+</body>
+</html>
